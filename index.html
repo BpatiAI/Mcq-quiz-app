@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MCQ Quiz App</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --paper:#FAF7F2;
+    --ink:#232323;
+    --ink-soft:#5c5850;
+    --line:#ddd6c9;
+    --accent:#3B5F4A;   /* chalkboard green */
+    --accent-soft:#e7efe9;
+    --right:#2f7a4d;
+    --right-bg:#e6f4ea;
+    --wrong:#b3402a;
+    --wrong-bg:#fbe9e4;
+    --card:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Georgia','Iowan Old Style',serif;
+    background:var(--paper);
+    color:var(--ink);
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:32px 16px;
+  }
+  .app{
+    width:100%;
+    max-width:640px;
+  }
+  .brand{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    margin-bottom:28px;
+  }
+  .brand .mark{
+    width:14px;height:14px;
+    background:var(--accent);
+    border-radius:3px;
+    transform:rotate(45deg);
+    flex-shrink:0;
+  }
+  .brand h1{
+    font-size:22px;
+    letter-spacing:0.02em;
+    margin:0;
+    font-weight:600;
+  }
+  .brand span{
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    font-size:12px;
+    color:var(--ink-soft);
+    text-transform:uppercase;
+    letter-spacing:0.12em;
+  }
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:28px;
+    margin-bottom:20px;
+  }
+
+  /* ---------- Upload screen ---------- */
+  .upload-card h2{
+    margin-top:0;
+    font-size:19px;
+  }
+  .upload-card p{
+    color:var(--ink-soft);
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    font-size:14.5px;
+    line-height:1.55;
+  }
+  .drop{
+    display:block;
+    width:100%;
+    border:1.5px dashed var(--accent);
+    border-radius:8px;
+    padding:28px 16px;
+    text-align:center;
+    cursor:pointer;
+    background:var(--accent-soft);
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    transition:background 0.15s ease;
+  }
+  .drop:hover{ background:#dcebe1; }
+  .drop input{ display:none; }
+  .drop .big{
+    font-size:14.5px;
+    color:var(--accent);
+    font-weight:600;
+  }
+  .drop .small{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-top:4px;
+  }
+
+  table.spec{
+    width:100%;
+    border-collapse:collapse;
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    font-size:12.5px;
+    margin-top:18px;
+  }
+  table.spec th, table.spec td{
+    border:1px solid var(--line);
+    padding:6px 8px;
+    text-align:left;
+  }
+  table.spec th{
+    background:var(--accent-soft);
+    color:var(--accent);
+    font-weight:600;
+  }
+
+  .link-btn{
+    background:none;
+    border:none;
+    color:var(--accent);
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    font-size:13px;
+    text-decoration:underline;
+    cursor:pointer;
+    padding:0;
+    margin-top:14px;
+  }
+
+  .error-box{
+    margin-top:16px;
+    background:var(--wrong-bg);
+    border:1px solid var(--wrong);
+    color:var(--wrong);
+    border-radius:6px;
+    padding:10px 12px;
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    font-size:13px;
+    white-space:pre-wrap;
+  }
+
+  /* ---------- Quiz screen ---------- */
+  .progress-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-bottom:10px;
+    letter-spacing:0.03em;
+  }
+  .progress-track{
+    height:5px;
+    background:var(--line);
+    border-radius:4px;
+    overflow:hidden;
+    margin-bottom:22px;
+  }
+  .progress-fill{
+    height:100%;
+    background:var(--accent);
+    transition:width 0.25s ease;
+  }
+  .question-text{
+    font-size:20px;
+    line-height:1.45;
+    margin:0 0 22px 0;
+  }
+  .choice{
+    display:flex;
+    align-items:flex-start;
+    gap:12px;
+    border:1.5px solid var(--line);
+    border-radius:8px;
+    padding:13px 15px;
+    margin-bottom:10px;
+    cursor:pointer;
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    font-size:15px;
+    line-height:1.4;
+    transition:border-color 0.12s ease, background 0.12s ease;
+  }
+  .choice:hover{ border-color:var(--accent); }
+  .choice .letter{
+    width:24px;height:24px;
+    border-radius:50%;
+    border:1.5px solid var(--ink-soft);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:12px;
+    flex-shrink:0;
+    color:var(--ink-soft);
+  }
+  .choice.disabled{ cursor:default; }
+  .choice.correct{
+    border-color:var(--right);
+    background:var(--right-bg);
+  }
+  .choice.correct .letter{
+    border-color:var(--right);
+    background:var(--right);
+    color:#fff;
+  }
+  .choice.incorrect{
+    border-color:var(--wrong);
+    background:var(--wrong-bg);
+  }
+  .choice.incorrect .letter{
+    border-color:var(--wrong);
+    background:var(--wrong);
+    color:#fff;
+  }
+  .feedback{
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    font-size:13.5px;
+    font-weight:600;
+    margin:14px 0 4px 0;
+  }
+  .feedback.right-text{ color:var(--right); }
+  .feedback.wrong-text{ color:var(--wrong); }
+
+  .nav-row{
+    display:flex;
+    justify-content:flex-end;
+    margin-top:18px;
+  }
+  button.primary{
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    border-radius:6px;
+    padding:11px 22px;
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  button.primary:disabled{
+    opacity:0.35;
+    cursor:not-allowed;
+  }
+  button.ghost{
+    background:none;
+    border:1.5px solid var(--line);
+    color:var(--ink);
+    border-radius:6px;
+    padding:10px 20px;
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    font-size:14px;
+    cursor:pointer;
+  }
+
+  /* ---------- Results ---------- */
+  .result-score{
+    font-size:44px;
+    font-weight:600;
+    margin:6px 0;
+  }
+  .result-label{
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    font-size:13px;
+    color:var(--ink-soft);
+    text-transform:uppercase;
+    letter-spacing:0.1em;
+  }
+  .result-row{
+    display:flex;
+    gap:24px;
+    margin:18px 0;
+  }
+  .review-item{
+    border-top:1px solid var(--line);
+    padding:14px 0;
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    font-size:13.5px;
+  }
+  .review-item .q{ font-family:Georgia,serif; font-size:15px; margin-bottom:6px; }
+  .tag{
+    display:inline-block;
+    font-size:11px;
+    font-weight:700;
+    padding:2px 8px;
+    border-radius:4px;
+    margin-right:8px;
+  }
+  .tag.right{ background:var(--right-bg); color:var(--right); }
+  .tag.wrong{ background:var(--wrong-bg); color:var(--wrong); }
+
+  .footer-actions{
+    display:flex;
+    gap:10px;
+    justify-content:center;
+    margin-top:8px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="brand">
+    <div class="mark"></div>
+    <h1>Quiz Board</h1>
+    <span>MCQ Assessment</span>
+  </div>
+
+  <div id="root"></div>
+</div>
+
+<script>
+const root = document.getElementById('root');
+let state = {
+  screen: 'upload',      // upload | start | quiz | results
+  questions: [],         // {question, choices:[{label,text}], correct}
+  current: 0,
+  answers: [],           // per question: {chosen, isCorrect}
+  studentName: '',
+  error: null
+};
+
+function render(){
+  if(state.screen === 'upload') renderUpload();
+  else if(state.screen === 'start') renderStart();
+  else if(state.screen === 'quiz') renderQuiz();
+  else renderResults();
+}
+
+function renderStart(){
+  root.innerHTML = `
+    <div class="card upload-card">
+      <h2>Ready to begin</h2>
+      <p>This quiz has ${state.questions.length} question(s). Enter your name so it can be included on the results, then start.</p>
+      <input type="text" id="nameInput" placeholder="Your name (optional)"
+        style="width:100%;padding:11px 13px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:14px;
+        border:1.5px solid var(--line);border-radius:6px;margin-bottom:16px;box-sizing:border-box;" />
+      <div class="nav-row">
+        <button class="primary" id="startBtn">Start quiz</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('startBtn').addEventListener('click', () => {
+    state.studentName = document.getElementById('nameInput').value.trim();
+    state.screen = 'quiz';
+    render();
+  });
+}
+
+function renderUpload(){
+  root.innerHTML = `
+    <div class="card upload-card">
+      <h2>Upload your question set</h2>
+      <p>Prepare an Excel file (.xlsx) with one row per question. Column headers, in order:</p>
+      <table class="spec">
+        <tr><th>Question</th><th>Option A</th><th>Option B</th><th>Option C</th><th>Option D</th><th>Correct Answer</th></tr>
+        <tr><td>What is 2+2?</td><td>3</td><td>4</td><td>5</td><td>6</td><td>B</td></tr>
+      </table>
+      <p style="margin-top:14px;">The "Correct Answer" column should contain the letter (A, B, C, or D) of the right option. You can include as many rows as you like, and up to 4 options per question (2 or 3 options also work).</p>
+      <label class="drop">
+        <input type="file" id="fileInput" accept=".xlsx,.xls" />
+        <div class="big">Click to choose an Excel file</div>
+        <div class="small">.xlsx or .xls</div>
+      </label>
+      <button class="link-btn" id="downloadTemplate">Download a blank template</button>
+      ${state.error ? `<div class="error-box">${state.error}</div>` : ''}
+    </div>
+  `;
+  document.getElementById('fileInput').addEventListener('change', handleFile);
+  document.getElementById('downloadTemplate').addEventListener('click', downloadTemplate);
+}
+
+function downloadTemplate(){
+  const wsData = [
+    ['Question','Option A','Option B','Option C','Option D','Correct Answer'],
+    ['What is the capital of France?','London','Paris','Berlin','Madrid','B'],
+    ['Which gas do plants absorb?','Oxygen','Nitrogen','Carbon Dioxide','Hydrogen','C']
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Questions');
+  XLSX.writeFile(wb, 'quiz_template.xlsx');
+}
+
+function handleFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  state.error = null;
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    try{
+      const data = new Uint8Array(evt.target.result);
+      const wb = XLSX.read(data, {type:'array'});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+
+      if(rows.length < 2){
+        state.error = "The file doesn't have any question rows below the header.";
+        render();
+        return;
+      }
+
+      const header = rows[0].map(h => String(h).trim().toLowerCase());
+      const qIdx = header.findIndex(h => h.includes('question'));
+      const correctIdx = header.findIndex(h => h.includes('correct'));
+      const optionIdxs = [];
+      header.forEach((h, i) => { if(h.includes('option')) optionIdxs.push(i); });
+
+      if(qIdx === -1 || correctIdx === -1 || optionIdxs.length < 2){
+        state.error = "Couldn't find the expected columns. Make sure headers include Question, at least two Option columns, and Correct Answer.";
+        render();
+        return;
+      }
+
+      const parsed = [];
+      const letters = ['A','B','C','D','E','F'];
+      for(let r = 1; r < rows.length; r++){
+        const row = rows[r];
+        if(!row || row.length === 0) continue;
+        const questionText = String(row[qIdx] ?? '').trim();
+        if(!questionText) continue;
+
+        const choices = [];
+        optionIdxs.forEach((colIdx, i) => {
+          const text = String(row[colIdx] ?? '').trim();
+          if(text !== ''){
+            choices.push({label: letters[i], text});
+          }
+        });
+        if(choices.length < 2) continue;
+
+        let correctRaw = String(row[correctIdx] ?? '').trim().toUpperCase();
+        // allow full answer text instead of a letter
+        let correctLabel = null;
+        if(letters.includes(correctRaw)){
+          correctLabel = correctRaw;
+        } else {
+          const match = choices.find(c => c.text.toUpperCase() === correctRaw);
+          if(match) correctLabel = match.label;
+        }
+        if(!correctLabel) continue;
+
+        parsed.push({question: questionText, choices, correct: correctLabel});
+      }
+
+      if(parsed.length === 0){
+        state.error = "No valid questions could be read. Check that every row has a question, at least two options, and a correct answer that matches one of the option letters.";
+        render();
+        return;
+      }
+
+      state.questions = parsed;
+      state.answers = new Array(parsed.length).fill(null);
+      state.current = 0;
+      state.studentName = '';
+      state.screen = 'start';
+      render();
+    } catch(err){
+      state.error = "Something went wrong reading that file. Please double check it's a valid .xlsx file.";
+      render();
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function renderQuiz(){
+  const q = state.questions[state.current];
+  const answered = state.answers[state.current];
+  const total = state.questions.length;
+
+  root.innerHTML = `
+    <div class="progress-row">
+      <span>Question ${state.current + 1} of ${total}</span>
+      <span>${state.answers.filter(a => a).length} answered</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" style="width:${((state.current)/total*100)}%"></div></div>
+    <div class="card">
+      <p class="question-text">${escapeHtml(q.question)}</p>
+      <div id="choicesWrap"></div>
+      <div id="feedbackWrap"></div>
+      <div class="nav-row">
+        <button class="primary" id="nextBtn" ${answered ? '' : 'disabled'}>
+          ${state.current === total - 1 ? 'See results' : 'Next question'}
+        </button>
+      </div>
+    </div>
+  `;
+
+  const wrap = document.getElementById('choicesWrap');
+  q.choices.forEach(choice => {
+    const div = document.createElement('div');
+    div.className = 'choice' + (answered ? ' disabled' : '');
+    if(answered){
+      if(choice.label === q.correct) div.classList.add('correct');
+      else if(choice.label === answered.chosen) div.classList.add('incorrect');
+    }
+    div.innerHTML = `<div class="letter">${choice.label}</div><div>${escapeHtml(choice.text)}</div>`;
+    if(!answered){
+      div.addEventListener('click', () => selectAnswer(choice.label));
+    }
+    wrap.appendChild(div);
+  });
+
+  if(answered){
+    const fb = document.getElementById('feedbackWrap');
+    if(answered.isCorrect){
+      fb.innerHTML = `<div class="feedback right-text">Correct!</div>`;
+    } else {
+      const correctText = q.choices.find(c => c.label === q.correct).text;
+      fb.innerHTML = `<div class="feedback wrong-text">Not quite. The correct answer is ${q.correct} — ${escapeHtml(correctText)}.</div>`;
+    }
+  }
+
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    if(state.current < total - 1){
+      state.current++;
+      render();
+    } else {
+      state.screen = 'results';
+      render();
+    }
+  });
+}
+
+function selectAnswer(label){
+  const q = state.questions[state.current];
+  state.answers[state.current] = {chosen: label, isCorrect: label === q.correct};
+  render();
+}
+
+function renderResults(){
+  const total = state.questions.length;
+  const correctCount = state.answers.filter(a => a && a.isCorrect).length;
+  const pct = Math.round((correctCount/total)*100);
+
+  let reviewHtml = '';
+  state.questions.forEach((q, i) => {
+    const a = state.answers[i];
+    const correctText = q.choices.find(c => c.label === q.correct).text;
+    reviewHtml += `
+      <div class="review-item">
+        <div class="q">${i+1}. ${escapeHtml(q.question)}</div>
+        <span class="tag ${a && a.isCorrect ? 'right' : 'wrong'}">${a && a.isCorrect ? 'CORRECT' : 'INCORRECT'}</span>
+        <span>Your answer: ${a ? a.chosen : '—'} &nbsp;•&nbsp; Correct: ${q.correct} (${escapeHtml(correctText)})</span>
+      </div>
+    `;
+  });
+
+  root.innerHTML = `
+    <div class="card" style="text-align:center;">
+      <div class="result-label">Score</div>
+      <div class="result-score">${correctCount} / ${total}</div>
+      <div class="result-label">${pct}% correct</div>
+      ${state.studentName ? `<div class="result-label" style="margin-top:6px;">${escapeHtml(state.studentName)}</div>` : ''}
+    </div>
+    <div class="card">
+      ${reviewHtml}
+    </div>
+    <div class="footer-actions">
+      <button class="ghost" id="retakeBtn">Retake this quiz</button>
+      <button class="primary" id="downloadBtn">Download results</button>
+      <button class="ghost" id="newBtn">Upload a new quiz</button>
+    </div>
+  `;
+
+  document.getElementById('retakeBtn').addEventListener('click', () => {
+    state.answers = new Array(total).fill(null);
+    state.current = 0;
+    state.screen = 'quiz';
+    render();
+  });
+  document.getElementById('downloadBtn').addEventListener('click', downloadResults);
+  document.getElementById('newBtn').addEventListener('click', () => {
+    state = {screen:'upload', questions:[], current:0, answers:[], studentName:'', error:null};
+    render();
+  });
+}
+
+function downloadResults(){
+  const total = state.questions.length;
+  const correctCount = state.answers.filter(a => a && a.isCorrect).length;
+  const pct = Math.round((correctCount/total)*100);
+
+  const wsData = [
+    ['Student Name', state.studentName || '(not entered)'],
+    ['Score', `${correctCount} / ${total}`],
+    ['Percent Correct', `${pct}%`],
+    [],
+    ['#','Question','Your Answer','Correct Answer','Result']
+  ];
+
+  state.questions.forEach((q, i) => {
+    const a = state.answers[i];
+    const yourAnswerText = a ? `${a.chosen} - ${q.choices.find(c => c.label === a.chosen)?.text ?? ''}` : 'Not answered';
+    const correctAnswerText = `${q.correct} - ${q.choices.find(c => c.label === q.correct).text}`;
+    wsData.push([
+      i + 1,
+      q.question,
+      yourAnswerText,
+      correctAnswerText,
+      a && a.isCorrect ? 'Correct' : 'Incorrect'
+    ]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{wch:4},{wch:45},{wch:30},{wch:30},{wch:10}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Results');
+
+  const namePart = state.studentName ? state.studentName.replace(/[^a-z0-9]+/gi, '_') : 'student';
+  XLSX.writeFile(wb, `quiz_results_${namePart}.xlsx`);
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+render();
+</script>
+</body>
+</html>
