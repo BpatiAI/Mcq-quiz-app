@@ -1,6 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
+<html lang="en"><head>
 <meta charset="UTF-8">
 <title>MCQ Quiz App</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -315,6 +313,14 @@
 </div>
 
 <script>
+// Captured before any rendering happens, so it reflects the pristine page markup.
+// Used later to bake questions into a standalone student-facing file.
+const ORIGINAL_HTML = document.documentElement.outerHTML;
+
+// When this file is generated for students, this will be replaced with real data
+// by the "Download quiz file for students" feature. Leave as null in the master/builder file.
+const EMBEDDED_QUESTIONS = [{"question":"What is the capital of France?","choices":[{"label":"A","text":"London"},{"label":"B","text":"Paris"},{"label":"C","text":"Berlin"},{"label":"D","text":"Madrid"}],"correct":"B"},{"question":"Which gas do plants absorb?","choices":[{"label":"A","text":"Oxygen"},{"label":"B","text":"Nitrogen"},{"label":"C","text":"Carbon Dioxide"},{"label":"D","text":"Hydrogen"}],"correct":"C"}];
+
 const root = document.getElementById('root');
 let state = {
   screen: 'upload',      // upload | start | quiz | results
@@ -322,6 +328,7 @@ let state = {
   current: 0,
   answers: [],           // per question: {chosen, isCorrect}
   studentName: '',
+  isEmbedded: false,
   error: null
 };
 
@@ -333,10 +340,16 @@ function render(){
 }
 
 function renderStart(){
+  const previewNote = !state.isEmbedded ? `
+    <p style="margin-top:-4px;">This is your preview as the teacher. When the questions look right, download the file below and upload <b>that</b> file to GitHub as <code>index.html</code> — students who open the link will go straight into the quiz, with no upload step on their end.</p>
+    <button class="link-btn" id="publishBtn">Download quiz file for students</button>
+    <div style="height:16px;"></div>
+  ` : '';
   root.innerHTML = `
     <div class="card upload-card">
       <h2>Ready to begin</h2>
       <p>This quiz has ${state.questions.length} question(s). Enter your name so it can be included on the results, then start.</p>
+      ${previewNote}
       <input type="text" id="nameInput" placeholder="Your name (optional)"
         style="width:100%;padding:11px 13px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:14px;
         border:1.5px solid var(--line);border-radius:6px;margin-bottom:16px;box-sizing:border-box;" />
@@ -350,6 +363,26 @@ function renderStart(){
     state.screen = 'quiz';
     render();
   });
+  if(!state.isEmbedded){
+    document.getElementById('publishBtn').addEventListener('click', generateStudentFile);
+  }
+}
+
+function generateStudentFile(){
+  const dataJson = JSON.stringify(state.questions);
+  const newHtml = ORIGINAL_HTML.replace(
+    'const EMBEDDED_QUESTIONS = null;',
+    'const EMBEDDED_QUESTIONS = ' + dataJson + ';'
+  );
+  const blob = new Blob([newHtml], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'index.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function renderUpload(){
@@ -564,7 +597,7 @@ function renderResults(){
     <div class="footer-actions">
       <button class="ghost" id="retakeBtn">Retake this quiz</button>
       <button class="primary" id="downloadBtn">Download results</button>
-      <button class="ghost" id="newBtn">Upload a new quiz</button>
+      ${!state.isEmbedded ? `<button class="ghost" id="newBtn">Upload a new quiz</button>` : ''}
     </div>
   `;
 
@@ -575,10 +608,12 @@ function renderResults(){
     render();
   });
   document.getElementById('downloadBtn').addEventListener('click', downloadResults);
-  document.getElementById('newBtn').addEventListener('click', () => {
-    state = {screen:'upload', questions:[], current:0, answers:[], studentName:'', error:null};
-    render();
-  });
+  if(!state.isEmbedded){
+    document.getElementById('newBtn').addEventListener('click', () => {
+      state = {screen:'upload', questions:[], current:0, answers:[], studentName:'', isEmbedded:false, error:null};
+      render();
+    });
+  }
 }
 
 function downloadResults(){
@@ -622,7 +657,11 @@ function escapeHtml(str){
   return div.innerHTML;
 }
 
+if(EMBEDDED_QUESTIONS && Array.isArray(EMBEDDED_QUESTIONS) && EMBEDDED_QUESTIONS.length > 0){
+  state.isEmbedded = true;
+  state.questions = EMBEDDED_QUESTIONS;
+  state.answers = new Array(EMBEDDED_QUESTIONS.length).fill(null);
+  state.screen = 'start';
+}
 render();
-</script>
-</body>
-</html>
+</script></body></html>
